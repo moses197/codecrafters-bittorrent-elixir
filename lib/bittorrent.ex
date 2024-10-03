@@ -1,42 +1,40 @@
 defmodule Bittorrent.CLI do
   def main(argv) do
-    case argv do
-      ["decode" | [encoded_str | _]] ->
-        decoded = Bencode.decode(encoded_str)
-        IO.puts(Jason.encode!(decoded))
-      [command | _] ->
-        IO.puts("Unknown command: #{command}")
-        System.halt(1)
-      [] ->
-        IO.puts("Usage: your_bittorrent.sh <command> <args>")
-        System.halt(1)
-    end
+      case argv do
+          ["decode" | [encoded_str | _]] ->
+              # You can use print statements as follows for debugging, they'll be visible when running tests.
+              # IO.puts("Logs from your program will appear here!")
+
+              # Uncomment this block to pass the first stage
+              decoded_str = Bencode.decode(encoded_str)
+              IO.puts(Jason.encode!(decoded_str))
+          [command | _] ->
+              IO.puts("Unknown command: #{command}")
+              System.halt(1)
+          [] ->
+              IO.puts("Usage: your_bittorrent.sh <command> <args>")
+              System.halt(1)
+      end
   end
 end
 
 defmodule Bencode do
-  def decode(encoded_value) when is_binary(encoded_value) do
-    case encoded_value do
-      <<?i, rest::binary>> ->
-        decode_integer(rest)
-      _ ->
-        decode_string(encoded_value)
+    def decode(<<"i", rest :: binary>>) do
+      <<number::binary-size(byte_size(rest)-1), "e">> = rest
+      {number, _} = Integer.parse(number)
+      number
     end
-  end
+    
+    def decode(encoded_value) when is_binary(encoded_value) do
+        binary_data = :binary.bin_to_list(encoded_value)
+        case Enum.find_index(binary_data, fn char -> char == 58 end) do
+          nil ->
+            IO.puts("The ':' character is not found in the binary")
+          index ->
+            rest = Enum.slice(binary_data, index+1..-1)
+            List.to_string(rest)
+        end
+      end
 
-  defp decode_integer(binary_data) do
-    {integer_part, "e" <> _} = String.split_at(binary_data, -1)
-    case Integer.parse(integer_part) do
-      {int, ""} -> int
-      :error -> "Invalid integer format"
-    end
-  end
-
-  defp decode_string(binary_data) do
-    {length_str, ":" <> rest} = String.split_at(binary_data, Enum.find_index(binary_data, fn char -> char == ?: end))
-    {length, ""} = Integer.parse(length_str)
-    String.slice(rest, 0, length)
-  end
-
-  # def decode(_), do: "Invalid encoded value: not binary"
+    def decode(_), do: "Invalid encoded value: not binary"
 end
